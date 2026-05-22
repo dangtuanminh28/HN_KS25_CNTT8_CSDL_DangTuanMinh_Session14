@@ -182,28 +182,25 @@ Code trên do vi phạm tính chất Atomicity (tính nguyên tử), tính chấ
 Nghĩa là ko được phép xảy ra tình trạng trừ tiền ở ví mà chưa giảm nợ đơn
 */
 -- Phần B
+-- Xóa thủ tục cũ nếu tồn tại
+-- Xóa thủ tục cũ nếu tồn tại
+-- Xóa thủ tục cũ bị lỗi
 DROP PROCEDURE IF EXISTS PayHospitalFee;
 DELIMITER //
-CREATE PROCEDURE PayHospitalFee (
+CREATE PROCEDURE PayHospitalFee(
     IN p_patient_id INT, 
     IN p_amount DECIMAL(18,2)
 )
 BEGIN
-    DECLARE v_new_balance DECIMAL(18,2);
     START TRANSACTION;
     UPDATE Wallets SET balance = balance - p_amount 
     WHERE patient_id = p_patient_id;
 
-    SELECT balance INTO v_new_balance FROM Wallets 
-    WHERE patient_id = p_patient_id;
+    ROLLBACK; 
+	SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Hệ thống gặp sự cố mạng đột ngột!';
 
-    IF v_new_balance < 0 THEN
-        ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Ví không đủ số dư để thanh toán hoặc hệ thống gặp sự cố!';
-    ELSE
-        UPDATE Patient_Invoices SET total_due = total_due - p_amount 
-        WHERE patient_id = p_patient_id;
-        COMMIT;
-    END IF;
+    UPDATE Patient_Invoices SET total_due = total_due - p_amount 
+    WHERE patient_id = p_patient_id;
+    COMMIT;
 END //
 DELIMITER ;
