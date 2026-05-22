@@ -182,19 +182,28 @@ CREATE PROCEDURE TransferBed(
     IN p_new_bed_id INT
 )
 BEGIN
-    DECLARE v_bed_is_free INT;
-    
-    START TRANSACTION;
-    UPDATE Beds SET patient_id = NULL 
-    WHERE patient_id = p_patient_id;
+    DECLARE v_bed_is_free INT DEFAULT 0;
+    DECLARE v_has_old_bed INT DEFAULT 0;
 
+    START TRANSACTION;
     SELECT count(bed_id) INTO v_bed_is_free FROM Beds 
     WHERE bed_id = p_new_bed_id AND patient_id IS NULL;
 
-    IF v_bed_is_free = 0 THEN
+    SELECT count(bed_id) INTO v_has_old_bed FROM Beds
+    WHERE patient_id = p_patient_id;
+
+    IF v_has_old_bed = 0 THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Bệnh nhân hiện tại không nằm ở chiếc giường nào!';
+        
+    ELSEIF v_bed_is_free = 0 THEN
+        ROLLBACK; 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Giường mới không tồn tại hoặc đã có người nằm!';
-         ROLLBACK;
+        
     ELSE
+        UPDATE Beds SET patient_id = NULL 
+        WHERE patient_id = p_patient_id;
+        
         UPDATE Beds SET patient_id = p_patient_id 
         WHERE bed_id = p_new_bed_id;
         COMMIT;

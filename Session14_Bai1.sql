@@ -189,21 +189,18 @@ CREATE PROCEDURE PayHospitalFee (
     IN p_amount DECIMAL(18,2)
 )
 BEGIN
-    DECLARE v_current_balance DECIMAL(18,2);
-    SELECT balance INTO v_current_balance FROM Wallets WHERE patient_id = p_patient_id;
-    
-    IF v_current_balance < p_amount THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Ví không đủ số dư để thanh toán';
+    DECLARE v_new_balance DECIMAL(18,2);
+    START TRANSACTION;
+    UPDATE Wallets SET balance = balance - p_amount 
+    WHERE patient_id = p_patient_id;
+
+    SELECT balance INTO v_new_balance FROM Wallets 
+    WHERE patient_id = p_patient_id;
+
+    IF v_new_balance < 0 THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Ví không đủ số dư để thanh toán hoặc hệ thống gặp sự cố!';
     ELSE
-        START TRANSACTION;
-        UPDATE Wallets SET balance = balance - p_amount 
-        WHERE patient_id = p_patient_id;
-
-		IF v_new_balance < 0 THEN
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Hệ thống gặp sự cố mạng đột ngột!';
-			ROLLBACK;
-        END IF;
-
         UPDATE Patient_Invoices SET total_due = total_due - p_amount 
         WHERE patient_id = p_patient_id;
         COMMIT;
