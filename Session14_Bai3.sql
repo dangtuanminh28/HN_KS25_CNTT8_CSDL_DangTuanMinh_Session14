@@ -41,6 +41,30 @@ INSERT INTO medic_fee (patient_id, total_due) VALUES
 (4, 50000),
 (5, 0);
 
+/*
+Xác định dữ liệu Đầu vào và Đầu ra
+* Tham số Đầu vào (IN):
+p_patient_id INT: Mã bệnh nhân nhận thuốc
+p_medicine_id INT): Mã thuốc trong kho
+p_quantity INT: Số lượng thuốc nhân viên yêu cầu cấp phát
+
+* Tham số Đầu ra (OUT):
+p_message VARCHAR(255): Chuỗi thông báo trạng thái kết quả xử lý
+Giải pháp:
+- Sử dụng kết hợp các tham số loại IN để nhận dữ liệu thực thi và một tham số loại OUT để thu hồi thông báo trạng thái
+
+-  Các bước thực hiện
+1. Khởi đầu dùng START TRANSACTION
+2. Truy vấn số lượng tồn kho (stock) và đơn giá (price) của thuốc từ bảng medical
+3. Điều kiện ko hợp lệ:
+- Nếu mã thuốc không tồn tại hoặc số lượng nhập vào bé hơn hoặc = 0 dùng ROLLBACK và thông báo lỗi
+- Nếu số lượng yêu cầu p_quantity lớn hơn stock thực tế dùng ROLLBACK, xóa toàn bộ dữ liệu trước đó để tránh âm kho,
+thêm thông báo lỗi số lượng kho
+4. Điều kiện hợp lệ:
+- Giảm số lượng tồn kho tương ứng từ bảng medical
+- Tính tổng tiền (p_quantity * price) rồi cộng total_due của bệnh nhân trong bảng medic_fee
+5. Dùng lệnh COMMIT để lưu dữ liệu và gán thông báo đã thành công
+*/
 DROP PROCEDURE IF EXISTS dispensing_medicine;
 DELIMITER //
 CREATE PROCEDURE dispensing_medicine (
